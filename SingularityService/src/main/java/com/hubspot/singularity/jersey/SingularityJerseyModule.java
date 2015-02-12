@@ -1,6 +1,7 @@
 package com.hubspot.singularity.jersey;
 
 import static com.hubspot.singularity.jersey.JerseyBinder.bindContainerRequestFilter;
+import static com.hubspot.singularity.jersey.JerseyBinder.bindResourceFilter;
 
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -15,5 +16,6 @@ public class SingularityJerseyModule implements Module
   public void configure(final Binder binder)
   {
     bindContainerRequestFilter(binder).to(ReplaceES419LanguageFilter.class).in(Scopes.SINGLETON);
+    bindResourceFilter(binder).to(OAuthFilterFactory.class).in(Scopes.SINGLETON);
   }
 }

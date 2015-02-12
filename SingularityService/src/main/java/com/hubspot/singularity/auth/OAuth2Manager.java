@@ -65,7 +65,19 @@ public class OAuth2Manager {
     }
   }
 
+  // TODO: decode / verify keys locally
+  // TODO: check HTTP status codes!!!
   public Optional<IdTokenValue> validateIdToken(String idToken) {
-    JsonWebSignature
+    final Request request = httpClient.prepareGet(config.getOAuthConfiguration().get().getTokenInfoUrl())
+            .addQueryParameter("id_token", idToken)
+            .build();
+
+    try {
+      final Response response = httpClient.executeRequest(request).get();
+
+      return Optional.of(objectMapper.readValue(response.getResponseBodyAsBytes(), IdTokenValue.class));
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
   }
 }

@@ -8,12 +8,21 @@ import javax.validation.constraints.NotNull;
 public class OAuthConfiguration {
   private String authUrl;
   private String tokenUrl;
+  private String tokenInfoUrl;
   private String clientId;
   private String clientSecret;
   private String redirectUri;
 
   @NotNull
   private List<String> scopes = Collections.emptyList();
+
+  public String getTokenInfoUrl() {
+    return tokenInfoUrl;
+  }
+
+  public void setTokenInfoUrl(String tokenInfoUrl) {
+    this.tokenInfoUrl = tokenInfoUrl;
+  }
 
   public String getAuthUrl() {
     return authUrl;
