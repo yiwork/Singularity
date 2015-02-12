@@ -154,6 +154,17 @@ public class SingularityConfiguration extends Configuration {
   @Valid
   private ZooKeeperConfiguration zooKeeperConfiguration;
 
+  @JsonProperty("oauth")
+  private OAuthConfiguration OAuthConfiguration;
+
+  public Optional<OAuthConfiguration> getOAuthConfiguration() {
+    return Optional.fromNullable(OAuthConfiguration);
+  }
+
+  public void setoAuthConfiguration(OAuthConfiguration oAuthConfiguration) {
+    this.OAuthConfiguration = oAuthConfiguration;
+  }
+
   public long getAskDriverToKillTasksAgainAfterMillis() {
     return askDriverToKillTasksAgainAfterMillis;
   }

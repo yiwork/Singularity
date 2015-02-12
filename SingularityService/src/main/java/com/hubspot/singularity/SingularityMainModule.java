@@ -3,6 +3,7 @@ package com.hubspot.singularity;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.inject.name.Names.named;
 
+import com.hubspot.singularity.auth.OAuth2Manager;
 import com.hubspot.singularity.smtp.JadeTemplateLoader;
 import com.hubspot.singularity.smtp.MailTemplateHelpers;
 import com.hubspot.singularity.smtp.SingularityMailRecordCleaner;
@@ -103,6 +104,8 @@ public class SingularityMainModule implements Module {
     binder.bind(SingularityMailRecordCleaner.class).in(Scopes.SINGLETON);
 
     binder.bind(SingularityWebhookPoller.class).in(Scopes.SINGLETON);
+
+    binder.bind(OAuth2Manager.class).in(Scopes.SINGLETON);
 
     binder.bind(MesosClient.class).in(Scopes.SINGLETON);
 
