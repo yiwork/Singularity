@@ -2,6 +2,7 @@ package com.hubspot.singularity;
 
 import com.google.inject.Binder;
 import com.hubspot.mesos.client.SingularityMesosClientModule;
+import com.hubspot.singularity.auth.SingularityOAuthModule;
 import com.hubspot.singularity.config.SingularityConfiguration;
 import com.hubspot.singularity.data.SingularityDataModule;
 import com.hubspot.singularity.data.history.SingularityHistoryModule;
@@ -20,6 +21,7 @@ public class SingularityServiceModule extends ConfigurationAwareModule<Singulari
   protected void configure(Binder binder, SingularityConfiguration configuration) {
     binder.install(new SingularityMainModule());
     binder.install(new SingularityDataModule());
+    binder.install(new SingularityOAuthModule());
     binder.install(new SingularitySchedulerModule());
     binder.install(new SingularityResourceModule(configuration.getUiConfiguration()));
     binder.install(new SingularityTranscoderModule());

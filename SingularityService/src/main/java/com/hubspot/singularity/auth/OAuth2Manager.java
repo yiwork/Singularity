@@ -1,6 +1,7 @@
 package com.hubspot.singularity.auth;
 
 import java.net.URI;
+import java.util.Map;
 
 import javax.ws.rs.core.UriBuilder;
 
@@ -22,39 +23,46 @@ public class OAuth2Manager {
   private final SingularityConfiguration config;
   private final AsyncHttpClient httpClient;
   private final ObjectMapper objectMapper;
+  private final Optional<DiscoveryDocument> maybeDiscoveryDocument;
 
   @Inject
-  public OAuth2Manager(SingularityConfiguration config, AsyncHttpClient httpClient, ObjectMapper objectMapper) {
+  public OAuth2Manager(SingularityConfiguration config, Optional<DiscoveryDocument> maybeDiscoveryDocument, AsyncHttpClient httpClient, ObjectMapper objectMapper) {
     this.config = config;
     this.httpClient = httpClient;
     this.objectMapper = objectMapper;
+    this.maybeDiscoveryDocument = maybeDiscoveryDocument;
   }
 
   public Optional<URI> generateAuthUrl() {
-    if (!config.getOAuthConfiguration().isPresent()) {
+    if (!maybeDiscoveryDocument.isPresent() || !config.getOAuthConfiguration().isPresent()) {
       return Optional.absent();
     }
 
-    final UriBuilder builder = UriBuilder.fromUri(config.getOAuthConfiguration().get().getAuthUrl());
+    final UriBuilder builder = UriBuilder.fromUri(maybeDiscoveryDocument.get().getAuthorizationEndpoint());
 
-    builder.queryParam("response_type", "code");
     builder.queryParam("client_id", config.getOAuthConfiguration().get().getClientId());
     builder.queryParam("redirect_uri", config.getOAuthConfiguration().get().getRedirectUri());
     builder.queryParam("scope", SPACE_JOINER.join(config.getOAuthConfiguration().get().getScopes()));
-    builder.queryParam("access_type", "online");
-    builder.queryParam("approval_prompt", "auto");
+
+    for (Map.Entry<String, String> entry : config.getOAuthConfiguration().get().getExtraAuthorizationQueryParams().entrySet()) {
+      builder.queryParam(entry.getKey(), entry.getValue());
+    }
 
     return Optional.of(builder.build());
   }
 
   public OAuthTokenResponse getAccessToken(String authorizationCode) {
-    final Request request = httpClient.preparePost(config.getOAuthConfiguration().get().getTokenUrl())
+    final AsyncHttpClient.BoundRequestBuilder requestBuilder = httpClient.preparePost(maybeDiscoveryDocument.get().getTokenEndpoint())
             .addParameter("code", authorizationCode)
             .addParameter("client_id", config.getOAuthConfiguration().get().getClientId())
             .addParameter("client_secret", config.getOAuthConfiguration().get().getClientSecret())
-            .addParameter("redirect_uri", config.getOAuthConfiguration().get().getRedirectUri())
-            .addParameter("grant_type", "authorization_code")
-            .build();
+            .addParameter("redirect_uri", config.getOAuthConfiguration().get().getRedirectUri());
+
+    for (Map.Entry<String, String> entry : config.getOAuthConfiguration().get().getExtraTokenParams().entrySet()) {
+      requestBuilder.addParameter(entry.getKey(), entry.getValue());
+    }
+
+    final Request request = requestBuilder.build();
 
     try {
       final Response response = httpClient.executeRequest(request).get();
@@ -68,7 +76,7 @@ public class OAuth2Manager {
   // TODO: decode / verify keys locally
   // TODO: check HTTP status codes!!!
   public Optional<IdTokenValue> validateIdToken(String idToken) {
-    final Request request = httpClient.prepareGet(config.getOAuthConfiguration().get().getTokenInfoUrl())
+    final Request request = httpClient.prepareGet(maybeDiscoveryDocument.get().getUserinfoEndpoint())
             .addQueryParameter("id_token", idToken)
             .build();
 

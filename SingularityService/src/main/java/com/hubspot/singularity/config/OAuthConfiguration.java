@@ -1,43 +1,70 @@
 package com.hubspot.singularity.config;
 
+import org.hibernate.validator.constraints.NotEmpty;
+import org.hibernate.validator.constraints.URL;
+
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import javax.validation.constraints.NotNull;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Strings;
+import com.hubspot.singularity.auth.DiscoveryDocument;
+
 public class OAuthConfiguration {
-  private String authUrl;
-  private String tokenUrl;
-  private String tokenInfoUrl;
+  private String discoveryDocumentUrl;
+  private DiscoveryDocument discoveryDocument;
+
+  @NotEmpty
   private String clientId;
+
+  @NotEmpty
   private String clientSecret;
+
+  @URL
   private String redirectUri;
+
+  @NotNull
+  private Map<String, String> extraAuthorizationQueryParams = Collections.emptyMap();
+
+  @NotNull
+  private Map<String, String> extraTokenParams = Collections.emptyMap();
 
   @NotNull
   private List<String> scopes = Collections.emptyList();
 
-  public String getTokenInfoUrl() {
-    return tokenInfoUrl;
+  public Map<String, String> getExtraTokenParams() {
+    return extraTokenParams;
   }
 
-  public void setTokenInfoUrl(String tokenInfoUrl) {
-    this.tokenInfoUrl = tokenInfoUrl;
+  public void setExtraTokenParams(Map<String, String> extraTokenParams) {
+    this.extraTokenParams = extraTokenParams;
   }
 
-  public String getAuthUrl() {
-    return authUrl;
+  public Map<String, String> getExtraAuthorizationQueryParams() {
+    return extraAuthorizationQueryParams;
   }
 
-  public void setAuthUrl(String authUrl) {
-    this.authUrl = authUrl;
+  public void setExtraAuthorizationQueryParams(Map<String, String> extraAuthorizationQueryParams) {
+    this.extraAuthorizationQueryParams = extraAuthorizationQueryParams;
   }
 
-  public String getTokenUrl() {
-    return tokenUrl;
+  public Optional<DiscoveryDocument> getDiscoveryDocument() {
+    return Optional.fromNullable(discoveryDocument);
   }
 
-  public void setTokenUrl(String tokenUrl) {
-    this.tokenUrl = tokenUrl;
+  public void setDiscoveryDocument(DiscoveryDocument discoveryDocument) {
+    this.discoveryDocument = discoveryDocument;
+  }
+
+  public Optional<String> getDiscoveryDocumentUrl() {
+    return Optional.fromNullable(Strings.emptyToNull(discoveryDocumentUrl));
+  }
+
+  public void setDiscoveryDocumentUrl(String discoveryDocumentUrl) {
+    this.discoveryDocumentUrl = discoveryDocumentUrl;
   }
 
   public String getClientId() {
