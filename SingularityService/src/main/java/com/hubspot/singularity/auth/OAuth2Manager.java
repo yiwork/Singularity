@@ -3,6 +3,7 @@ package com.hubspot.singularity.auth;
 import java.net.URI;
 import java.util.Map;
 
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.UriBuilder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -16,9 +17,18 @@ import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Request;
 import com.ning.http.client.Response;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 @Singleton
 public class OAuth2Manager {
-  private static final Joiner SPACE_JOINER = Joiner.on(" ");
+  private static final Joiner SPACE_JOINER = Joiner.on(" ").skipNulls();
+
+  private static final String ACCEPT_HEADER = "Accept";
+  private static final String CLIENT_ID = "client_id";
+  private static final String CLIENT_SECRET = "client_secret";
+  private static final String SCOPE = "scope";
+  private static final String REDIRECT_URI = "redirect_uri";
+  private static final String CODE = "code";
 
   private final SingularityConfiguration config;
   private final AsyncHttpClient httpClient;
@@ -40,9 +50,9 @@ public class OAuth2Manager {
 
     final UriBuilder builder = UriBuilder.fromUri(maybeDiscoveryDocument.get().getAuthorizationEndpoint());
 
-    builder.queryParam("client_id", config.getOAuthConfiguration().get().getClientId());
-    builder.queryParam("redirect_uri", config.getOAuthConfiguration().get().getRedirectUri());
-    builder.queryParam("scope", SPACE_JOINER.join(config.getOAuthConfiguration().get().getScopes()));
+    builder.queryParam(CLIENT_ID, config.getOAuthConfiguration().get().getClientId());
+    builder.queryParam(REDIRECT_URI, config.getOAuthConfiguration().get().getRedirectUri());
+    builder.queryParam(SCOPE, SPACE_JOINER.join(config.getOAuthConfiguration().get().getScopes()));
 
     for (Map.Entry<String, String> entry : config.getOAuthConfiguration().get().getExtraAuthorizationQueryParams().entrySet()) {
       builder.queryParam(entry.getKey(), entry.getValue());
@@ -53,10 +63,11 @@ public class OAuth2Manager {
 
   public OAuthTokenResponse getAccessToken(String authorizationCode) {
     final AsyncHttpClient.BoundRequestBuilder requestBuilder = httpClient.preparePost(maybeDiscoveryDocument.get().getTokenEndpoint())
-            .addParameter("code", authorizationCode)
-            .addParameter("client_id", config.getOAuthConfiguration().get().getClientId())
-            .addParameter("client_secret", config.getOAuthConfiguration().get().getClientSecret())
-            .addParameter("redirect_uri", config.getOAuthConfiguration().get().getRedirectUri());
+            .addHeader(ACCEPT_HEADER, MediaType.APPLICATION_JSON)
+            .addParameter(CODE, checkNotNull(authorizationCode))
+            .addParameter(CLIENT_ID, config.getOAuthConfiguration().get().getClientId())
+            .addParameter(CLIENT_SECRET, config.getOAuthConfiguration().get().getClientSecret())
+            .addParameter(REDIRECT_URI, config.getOAuthConfiguration().get().getRedirectUri());
 
     for (Map.Entry<String, String> entry : config.getOAuthConfiguration().get().getExtraTokenParams().entrySet()) {
       requestBuilder.addParameter(entry.getKey(), entry.getValue());
@@ -67,21 +78,28 @@ public class OAuth2Manager {
     try {
       final Response response = httpClient.executeRequest(request).get();
 
+      if (response.getStatusCode() != 200) {
+        throw new RuntimeException(response.getResponseBody());
+      }
+
       return objectMapper.readValue(response.getResponseBodyAsBytes(), OAuthTokenResponse.class);
     } catch (Exception e) {
       throw Throwables.propagate(e);
     }
   }
 
-  // TODO: decode / verify keys locally
-  // TODO: check HTTP status codes!!!
+  // TODO: decode / verify keys locally where possible
   public Optional<IdTokenValue> validateIdToken(String idToken) {
     final Request request = httpClient.prepareGet(maybeDiscoveryDocument.get().getUserinfoEndpoint())
-            .addQueryParameter("id_token", idToken)
+            .addQueryParameter(config.getOAuthConfiguration().get().getAccessTokenQueryParamName(), idToken)
             .build();
 
     try {
       final Response response = httpClient.executeRequest(request).get();
+
+      if (response.getStatusCode() != 200) {
+        throw new RuntimeException(response.getResponseBody());
+      }
 
       return Optional.of(objectMapper.readValue(response.getResponseBodyAsBytes(), IdTokenValue.class));
     } catch (Exception e) {

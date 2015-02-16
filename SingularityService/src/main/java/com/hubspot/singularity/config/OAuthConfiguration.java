@@ -35,6 +35,18 @@ public class OAuthConfiguration {
   @NotNull
   private List<String> scopes = Collections.emptyList();
 
+  @NotNull
+  @NotEmpty
+  private String accessTokenQueryParamName = "access_token";
+
+  public String getAccessTokenQueryParamName() {
+    return accessTokenQueryParamName;
+  }
+
+  public void setAccessTokenQueryParamName(String accessTokenQueryParamName) {
+    this.accessTokenQueryParamName = accessTokenQueryParamName;
+  }
+
   public Map<String, String> getExtraTokenParams() {
     return extraTokenParams;
   }
