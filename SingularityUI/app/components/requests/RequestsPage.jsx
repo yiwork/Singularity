@@ -21,11 +21,14 @@ import RequestFilters from './RequestFilters';
 import * as Cols from './Columns';
 
 import filterSelector from '../../selectors/requests/filterSelector';
+import idSelector from '../../selectors/idSelector';
 
 import Utils from '../../utils';
 import Loader from '../common/Loader';
 
 class RequestsPage extends Component {
+
+  static propertyFilter = ['state', 'request.id', 'request.requestType', 'request.instances', 'request.group', 'request.bounceAfterScale', 'requestDeployState.activeDeploy.deployId', 'requestDeployState.activeDeploy.user', 'requestDeployState.activeDeploy.timestamp', 'requestDeployState.activeDeploy.loadBalancerOptions']
 
   static propTypes = {
     requestsInState: PropTypes.array,
@@ -107,7 +110,16 @@ class RequestsPage extends Component {
   }
 
   render() {
-    const displayRequests = filterSelector({requestsInState: this.props.requestsInState, filter: this.props.filter, requestUtilizations: this.props.requestUtilizations});
+    let displayRequests = []
+    if (this.props.requestsInState.length) {
+      displayRequests = filterSelector({requestsInState: this.props.requestsInState, filter: this.props.filter, requestUtilizations: this.props.requestUtilizations});
+    } else if (this.props.requestIds.length) {
+      const options = _.map(this.props.requestIds, (id) => ({
+        id: id,
+        request: {id: id}
+      }));
+      displayRequests = idSelector({options: options, filter: this.props.filter});
+    }
 
     let table;
     if (this.state.loading) {
@@ -120,6 +132,8 @@ class RequestsPage extends Component {
           ref="table"
           data={displayRequests}
           keyGetter={(request) => (request.request ? request.request.id : request.requestId)}
+          rowChunkSize={20}
+          paginated={true}
         >
           {this.getColumns()}
         </UITable>
@@ -167,14 +181,15 @@ function mapStateToProps(state, ownProps) {
     notFound: statusCode === 404,
     requestsInState: modifiedRequests,
     requestUtilizations: state.api.requestUtilizations.data,
+    requestIds: state.api.requestIds.data,
     groups: userGroups,
     filter
   };
 }
 
-function mapDispatchToProps(dispatch) {
+function mapDispatchToProps(dispatch, ownProps) {
   return {
-    fetchFilter: (state) => dispatch(FetchRequestsInState.trigger(state === 'cleaning' ? 'cleanup' : state, true)),
+    fetchFilter: (state) => dispatch(FetchRequestsInState.trigger(state === 'cleaning' ? 'cleanup' : state, true, RequestsPage.propertyFilter)),
     removeRequest: (requestid, data) => dispatch(RemoveRequest.trigger(requestid, data)),
     unpauseRequest: (requestId, data) => dispatch(UnpauseRequest.trigger(requestId, data)),
     runNow: (requestId, data) => dispatch(RunRequest.trigger(requestId, data)),
@@ -188,4 +203,4 @@ function mapDispatchToProps(dispatch) {
   };
 }
 
-export default connect(mapStateToProps, mapDispatchToProps)(rootComponent(withRouter(RequestsPage), (props) => refresh(props.params.state || 'all'), true, false));
+export default connect(mapStateToProps, mapDispatchToProps)(rootComponent(withRouter(RequestsPage), (props) => refresh(props.params.state || 'all', RequestsPage.propertyFilter), true, false));
