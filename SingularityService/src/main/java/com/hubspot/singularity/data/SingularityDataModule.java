@@ -38,6 +38,7 @@ public class SingularityDataModule extends AbstractModule {
     bind(PriorityManager.class).in(Scopes.SINGLETON);
     bind(RequestGroupManager.class).in(Scopes.SINGLETON);
     bind(DisasterManager.class).in(Scopes.SINGLETON);
+    bind(AuthTokenManager.class).in(Scopes.SINGLETON);
   }
 
   @Provides
