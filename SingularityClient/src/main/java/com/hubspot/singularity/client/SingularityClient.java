@@ -507,7 +507,10 @@ public class SingularityClient {
         request.setUrl(url);
         return httpClient.execute(request.build());
       });
-    } catch (ExecutionException | RetryException exn) {
+    } catch (RetryException re) {
+      throw new SingularityClientException("Failed request to Singularity",
+          re.getLastFailedAttempt().getExceptionCause());
+    } catch (ExecutionException exn) {
       throw new SingularityClientException("Failed request to Singularity", exn);
     }
   }
