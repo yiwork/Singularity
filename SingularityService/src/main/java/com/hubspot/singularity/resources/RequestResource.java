@@ -90,6 +90,7 @@ import com.hubspot.singularity.helpers.RequestHelper;
 import com.hubspot.singularity.smtp.SingularityMailer;
 import com.ning.http.client.AsyncHttpClient;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.dropwizard.auth.Auth;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -301,6 +302,7 @@ public class RequestResource extends AbstractRequestResource {
   @POST
   @Path("/request/{requestId}/bounce")
   @Operation(summary = "Trigger a bounce for a request")
+  @SuppressFBWarnings("NP_NULL_PARAM_DEREF_ALL_TARGETS_DANGEROUS")
   public SingularityRequestParent bounce(
       @Parameter(hidden = true) @Auth SingularityUser user,
       @Parameter(required = true, description = "The request to bounce") @PathParam("requestId") String requestId,
@@ -388,7 +390,11 @@ public class RequestResource extends AbstractRequestResource {
         @Parameter(hidden = true) @Context HttpServletRequest requestContext,
         @QueryParam("minimal") Boolean minimalReturn,
         @RequestBody(description = "Settings specific to this run of the request") SingularityRunNowRequest runNowRequest) {
-    return maybeProxyToLeader(requestContext, SingularityPendingRequestParent.class, runNowRequest, () -> scheduleImmediately(user, requestId, runNowRequest, Optional.fromNullable(minimalReturn).or(false)));
+    if (configuration.isProxyRunNowToLeader()) {
+      return maybeProxyToLeader(requestContext, SingularityPendingRequestParent.class, runNowRequest, () -> scheduleImmediately(user, requestId, runNowRequest, Optional.fromNullable(minimalReturn).or(false)));
+    } else {
+      return scheduleImmediately(user, requestId, runNowRequest, Optional.fromNullable(minimalReturn).or(false));
+    }
   }
 
   public SingularityPendingRequestParent scheduleImmediately(SingularityUser user, String requestId, SingularityRunNowRequest runNowRequest) {
@@ -403,14 +409,25 @@ public class RequestResource extends AbstractRequestResource {
 
     checkConflict(requestWithState.getState() != RequestState.PAUSED, "Request %s is paused. Unable to run now (it must be manually unpaused first)", requestWithState.getRequest().getId());
 
+    // Check these to avoid unnecessary calls to taskManager
+    Integer activeTasks = null;
+    Integer pendingTasks = null;
+
+    boolean isOneoffWithInstances = requestWithState.getRequest().isOneOff() && requestWithState.getRequest().getInstances().isPresent();
+    if (requestWithState.getRequest().isScheduled() || isOneoffWithInstances) {
+      activeTasks = taskManager.getActiveTaskIdsForRequest(requestId).size();
+    }
+    if (isOneoffWithInstances) {
+      pendingTasks = taskManager.getPendingTaskIdsForRequest(requestId).size();
+    }
 
     final SingularityPendingRequest pendingRequest = validator.checkRunNowRequest(
         getAndCheckDeployId(requestId),
         user.getEmail(),
         requestWithState.getRequest(),
         maybeRunNowRequest,
-        taskManager.getActiveTaskIdsForRequest(requestId),
-        taskManager.getPendingTaskIdsForRequest(requestId));
+        activeTasks,
+        pendingTasks);
 
     SingularityCreateResult result = requestManager.addToPendingQueue(pendingRequest);
 
@@ -448,6 +465,7 @@ public class RequestResource extends AbstractRequestResource {
           @ApiResponse(responseCode = "409", description = "Request is already paused or being cleaned"),
       }
   )
+  @SuppressFBWarnings("NP_NULL_PARAM_DEREF_ALL_TARGETS_DANGEROUS")
   public SingularityRequestParent pause(
       @Parameter(hidden = true) @Auth SingularityUser user,
       @Parameter(required = true, description = "The request ID to pause") @PathParam("requestId") String requestId,
@@ -521,6 +539,7 @@ public class RequestResource extends AbstractRequestResource {
 
   @POST
   @Path("/request/{requestId}/unpause")
+  @SuppressFBWarnings("NP_NULL_PARAM_DEREF_ALL_TARGETS_DANGEROUS")
   public SingularityRequestParent unpauseNoBody(@Parameter(hidden = true) @Auth SingularityUser user,
                                                 @PathParam("requestId") String requestId,
                                                 @Context HttpServletRequest requestContext) {
@@ -571,6 +590,7 @@ public class RequestResource extends AbstractRequestResource {
   @POST
   @Path("/request/{requestId}/exit-cooldown")
   @Operation(summary = "Immediately exits cooldown, scheduling new tasks immediately")
+  @SuppressFBWarnings("NP_NULL_PARAM_DEREF_ALL_TARGETS_DANGEROUS")
   public SingularityRequestParent exitCooldown(
       @Parameter(hidden = true) @Auth SingularityUser user,
       @Parameter(required = true, description = "The request to operate on") @PathParam("requestId") String requestId,
