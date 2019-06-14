@@ -62,35 +62,35 @@ var webpackHMRPath = serverBase + '/__webpack_hmr';
 
 __webpack_public_path__ = serverBase;
 
-gulp.task('clean', function() {
+const clean = function() {
   return del(dest + '/*');
-});
+};
 
-gulp.task('static', ['clean'], function() {
+const staticAssets = gulp.series(clean, function staticAssets() {
   return gulp.src(['app/assets/static/**/*'])
     .pipe(gulp.dest(dest + '/static'));
-})
+});
 
-gulp.task('html', ['static'], function () {
+const html = gulp.series(staticAssets, function html() {
   return gulp.src('app/assets/index.mustache')
     .pipe(mustache(templateData, {extension: '.html'}))
     .pipe(gulp.dest(dest));
 });
 
-gulp.task('debug-html', ['static'], function () {
+const debugHtml = gulp.series(staticAssets, function debugHtml() {
   templateData.isDebug = true;
   return gulp.src('app/assets/index.mustache')
     .pipe(mustache(templateData, {extension: '.html'}))
     .pipe(gulp.dest(dest));
 });
 
-gulp.task('build', ['html'], function () {
+const build = gulp.series(html, function build() {
   return gulp.src('app')
     .pipe(webpackStream(require('./webpack.config')))
     .pipe(gulp.dest(dest + '/static'));
 });
 
-gulp.task('serve', ['debug-html'], function () {
+const serve = gulp.series(debugHtml, function serve() {
   var count = 0;
   var webpackConfig = require('./make-webpack-config')({
     isDebug: true,
@@ -141,4 +141,6 @@ gulp.task('serve', ['debug-html'], function () {
   });
 });
 
-gulp.task('default', ['build']);
+exports.build = build;
+exports.serve = serve;
+exports.default = build;
