@@ -48,4 +48,8 @@ public interface HistoryJDBI extends GetHandle {
   int getTaskIdHistoryCount(Optional<String> requestId, Optional<String> deployId, Optional<String> runId, Optional<String> host,
                             Optional<ExtendedTaskState> lastTaskStatus, Optional<Long> startedBefore, Optional<Long> startedAfter, Optional<Long> updatedBefore,
                             Optional<Long> updatedAfter);
+
+  int purgeRequestHistory(Date threshold, int batchSize);
+
+  int purgeDeployHistory(Date threshold, int batchSize);
 }
