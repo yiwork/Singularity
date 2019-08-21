@@ -27,6 +27,7 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.net.HostAndPort;
 import com.google.inject.Binder;
@@ -40,6 +41,7 @@ import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
+import com.hubspot.mesos.JavaUtils;
 import com.hubspot.singularity.config.CustomExecutorConfiguration;
 import com.hubspot.singularity.config.HistoryPurgingConfiguration;
 import com.hubspot.singularity.config.MesosConfiguration;
@@ -423,5 +425,12 @@ public class SingularityMainModule implements Module {
       }
     }
     return leaderOnlyPollers;
+  }
+
+  @Provides
+  @Singleton
+  @Singularity
+  public ObjectMapper providesSingularityObjectMapper() {
+    return JavaUtils.newObjectMapper();
   }
 }
