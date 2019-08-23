@@ -66,6 +66,7 @@ public class IndexView extends View {
   private final String authTokenKey;
   private final String quickLinks;
   private final String navTitleLinks;
+  private final String automationUsers;
 
   public IndexView(String singularityUriBase, String appRoot, IndexViewConfiguration configuration, ObjectMapper mapper) {
     super("index.mustache");
@@ -136,12 +137,8 @@ public class IndexView extends View {
 
     try {
       this.quickLinks = ow.writeValueAsString(uiConfiguration.getQuickLinks());
-    } catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-
-    try {
       this.navTitleLinks = ow.writeValueAsString(uiConfiguration.getNavTitleLinks());
+      this.automationUsers = ow.writeValueAsString(uiConfiguration.getAutomationUsers());
     } catch (JsonProcessingException e) {
       throw new RuntimeException(e);
     }

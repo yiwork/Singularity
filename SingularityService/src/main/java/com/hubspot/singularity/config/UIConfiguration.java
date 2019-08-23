@@ -115,6 +115,9 @@ public class UIConfiguration {
   @JsonProperty
   private Map<String, String> navTitleLinks = Collections.emptyMap();
 
+  @JsonProperty
+  private List<String> automationUsers = Collections.emptyList();
+
   public boolean isHideNewDeployButton() {
     return hideNewDeployButton;
   }
@@ -305,5 +308,13 @@ public class UIConfiguration {
 
   public void setNavTitleLinks(Map<String, String> navTitleLinks) {
     this.navTitleLinks = navTitleLinks;
+  }
+
+  public List<String> getAutomationUsers() {
+    return automationUsers;
+  }
+
+  public void setAutomationUsers(List<String> automationUsers) {
+    this.automationUsers = automationUsers;
   }
 }
