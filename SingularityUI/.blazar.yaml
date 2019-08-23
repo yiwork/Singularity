@@ -19,6 +19,8 @@ after:
       commands:
         - /bin/bash custom-build-config/publish-ui.sh
 
+buildType: GENERIC_SINGULARITY
+
 stepActivation:
   publish:
     branches: [hs_staging, hs_qa, hs_stable, master]
