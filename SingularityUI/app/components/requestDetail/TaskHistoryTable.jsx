@@ -112,6 +112,8 @@ class TaskHistoryTable extends Component {
       </ToolTip>
     );
 
+    const hideRunId = Utils.request.isLongRunning(requestParent);
+
     let table;
     if (this.state.loading) {
       table = <Loader />;
@@ -177,6 +179,14 @@ class TaskHistoryTable extends Component {
             id="run-time"
             key="run-time"
             cellData={(task) => Utils.duration(task.updatedAt - task.taskId.startedAt)}
+          />
+          <Column
+            label="Run ID"
+            id="runId"
+            key="runId"
+            className={hideRunId ? "hidden" : ""}
+            headerClassName={hideRunId ? "hidden" : ""}
+            cellData={(task) => task.runId}
           />
           <Column
             id="actions-column"
