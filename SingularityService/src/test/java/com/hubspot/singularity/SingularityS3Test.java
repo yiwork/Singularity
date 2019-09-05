@@ -1,8 +1,8 @@
 package com.hubspot.singularity;
 
 import java.util.Collection;
-import java.util.Optional;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.TimeZone;
 
 import org.junit.jupiter.api.Assertions;
