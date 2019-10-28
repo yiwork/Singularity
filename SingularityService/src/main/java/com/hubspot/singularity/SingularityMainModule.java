@@ -21,7 +21,6 @@ import javax.servlet.http.HttpServletRequest;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.curator.framework.recipes.leader.LeaderLatchListener;
-import org.apache.curator.framework.state.ConnectionStateListener;
 
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3Client;
@@ -69,6 +68,7 @@ import com.hubspot.singularity.mesos.OfferCache;
 import com.hubspot.singularity.mesos.SingularityMesosStatusUpdateHandler;
 import com.hubspot.singularity.mesos.SingularityNoOfferCache;
 import com.hubspot.singularity.mesos.SingularityOfferCache;
+import com.hubspot.singularity.mesos.StatusUpdateQueue;
 import com.hubspot.singularity.metrics.SingularityGraphiteReporter;
 import com.hubspot.singularity.resources.SingularityServiceUIModule;
 import com.hubspot.singularity.scheduler.SingularityLeaderOnlyPoller;
@@ -130,9 +130,6 @@ public class SingularityMainModule implements Module {
     binder.bind(LeaderLatch.class).to(SingularityLeaderLatch.class).in(Scopes.SINGLETON);
     binder.bind(CuratorFramework.class).toProvider(SingularityCuratorProvider.class).in(Scopes.SINGLETON);
 
-    Multibinder<ConnectionStateListener> connectionStateListeners = Multibinder.newSetBinder(binder, ConnectionStateListener.class);
-    connectionStateListeners.addBinding().to(SingularityAbort.class).in(Scopes.SINGLETON);
-
     Multibinder<LeaderLatchListener> leaderLatchListeners = Multibinder.newSetBinder(binder, LeaderLatchListener.class);
     leaderLatchListeners.addBinding().to(SingularityLeaderController.class).in(Scopes.SINGLETON);
 
@@ -147,7 +144,7 @@ public class SingularityMainModule implements Module {
     binder.bind(SingularityExceptionNotifier.class).in(Scopes.SINGLETON);
     binder.bind(LoadBalancerClient.class).to(LoadBalancerClientImpl.class).in(Scopes.SINGLETON);
     binder.bind(SingularityMailRecordCleaner.class).in(Scopes.SINGLETON);
-
+    binder.bind(StatusUpdateQueue.class).in(Scopes.SINGLETON);
     binder.bind(SingularityWebhookPoller.class).in(Scopes.SINGLETON);
 
     binder.bind(SingularityAbort.class).in(Scopes.SINGLETON);
