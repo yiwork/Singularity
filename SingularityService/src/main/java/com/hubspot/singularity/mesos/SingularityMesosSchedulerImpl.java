@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
@@ -142,20 +143,16 @@ public class SingularityMesosSchedulerImpl extends SingularityMesosScheduler {
         heartbeatIntervalSeconds = Optional.of(advertisedHeartbeatIntervalSeconds);
       }
 
-      // Should be called before activation of leader cache or cache could be left empty
-      startup.checkMigrations();
-
-      leaderCacheCoordinator.activateLeaderCache();
+      if (state.getMesosSchedulerState() != MesosSchedulerState.PAUSED_FOR_MESOS_RECONNECT) {
+        // Should be called before activation of leader cache or cache could be left empty
+        startup.checkMigrations();
+        leaderCacheCoordinator.activateLeaderCache();
+      }
       MasterInfo newMasterInfo = subscribed.getMasterInfo();
       masterInfo.set(newMasterInfo);
       startup.startup(newMasterInfo);
       state.setMesosSchedulerState(MesosSchedulerState.SUBSCRIBED);
-      try {
-        queuedUpdates.iterate(this::handleStatusUpdateAsync);
-      } catch (Throwable t) {
-        LOG.error("Unable to process queued status updates", t);
-        throw new RuntimeException(t);
-      }
+      handleQueuedStatusUpdates();
     }, "subscribed", false);
   }
 
@@ -198,6 +195,7 @@ public class SingularityMesosSchedulerImpl extends SingularityMesosScheduler {
 
   @Override
   public CompletableFuture<Boolean> statusUpdate(TaskStatus status) {
+    lastHeartbeatTime.getAndSet(System.currentTimeMillis()); // Consider status update a heartbeat, we are still getting valid communication from mesos
     if (!state.isRunning()) {
       try {
         LOG.info("Scheduler is in state {}, queueing an update {} - {} queued updates so far", state.getMesosSchedulerState(), status, queuedUpdates.size());
@@ -288,12 +286,7 @@ public class SingularityMesosSchedulerImpl extends SingularityMesosScheduler {
       } else if (currentState == MesosSchedulerState.PAUSED_SUBSCRIBED) {
         LOG.info("Already subscribed, restarting scheduler actions");
         state.setMesosSchedulerState(MesosSchedulerState.SUBSCRIBED);
-        try {
-          queuedUpdates.iterate(this::handleStatusUpdateAsync);
-        } catch (Throwable t) {
-          LOG.error("Unable to process queued status updates", t);
-          throw new RuntimeException(t);
-        }
+        handleQueuedStatusUpdates();
         return;
       }
 
@@ -361,7 +354,9 @@ public class SingularityMesosSchedulerImpl extends SingularityMesosScheduler {
   public void reconnectMesos() {
     callWithStateLock(() -> {
       state.setMesosSchedulerState(MesosSchedulerState.PAUSED_FOR_MESOS_RECONNECT);
+      LOG.info("Paused scheduler actions, closing existing mesos connection");
       mesosSchedulerClient.close();
+      LOG.info("Closed existing mesos connection");
       try {
         Retryer<Void> startRetryer = RetryerBuilder.<Void>newBuilder()
             .retryIfException()
@@ -518,5 +513,33 @@ public class SingularityMesosSchedulerImpl extends SingularityMesosScheduler {
           }
           LOG.debug("Handled status update for {} in {}", status.getTaskId().getValue(), JavaUtils.duration(start));
         });
+  }
+
+  private void handleQueuedStatusUpdates() {
+    try {
+      Iterator<TaskStatus> diskQueueIterator = queuedUpdates.diskQueueIterator();
+      while (diskQueueIterator.hasNext()) {
+        while (!statusUpdateHandler.hasRoomForMoreUpdates()) {
+          LOG.debug("Status update queue is full, waiting before processing additional updates");
+          Thread.sleep(2000);
+        }
+        TaskStatus status = diskQueueIterator.next();
+        handleStatusUpdateAsync(status);
+        diskQueueIterator.remove();
+      }
+
+      TaskStatus nextInMemory = queuedUpdates.nextInMemory();
+      while (nextInMemory != null) {
+        while (!statusUpdateHandler.hasRoomForMoreUpdates()) {
+          LOG.debug("Status update queue is full, waiting before processing additional updates");
+          Thread.sleep(2000);
+        }
+        handleStatusUpdateAsync(nextInMemory);
+        nextInMemory = queuedUpdates.nextInMemory();
+      }
+    } catch (Throwable t) {
+      LOG.error("Unable to process queued status updates", t);
+      throw new RuntimeException(t);
+    }
   }
 }
