@@ -79,7 +79,7 @@ public class SingularityMesosSchedulerClient {
     this.configuration = configuration;
     this.mesosConfiguration = configuration.getMesosConfiguration();
     this.singularityUriBase = singularityUriBase;
-    this.subscribeScheduler = Schedulers.from(threadPoolFactory.get("mesos-rx-subscribe", 5));
+    this.subscribeScheduler = Schedulers.from(threadPoolFactory.get("mesos-rx-subscribe", configuration.getMesosConfiguration().getSubscriberThreads()));
   }
 
   /**
