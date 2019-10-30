@@ -39,6 +39,7 @@ import com.hubspot.mesos.rx.java.SinkOperation;
 import com.hubspot.mesos.rx.java.SinkOperations;
 import com.hubspot.mesos.rx.java.protobuf.ProtobufMesosClientBuilder;
 import com.hubspot.mesos.rx.java.util.UserAgentEntries;
+import com.hubspot.singularity.SingularityManagedThreadPoolFactory;
 import com.hubspot.singularity.config.MesosConfiguration;
 import com.hubspot.singularity.config.SingularityConfiguration;
 import com.hubspot.singularity.config.UIConfiguration;
@@ -47,6 +48,8 @@ import com.hubspot.singularity.resources.ui.UiResource;
 
 import rx.BackpressureOverflow;
 import rx.Observable;
+import rx.Scheduler;
+import rx.schedulers.Schedulers;
 import rx.subjects.PublishSubject;
 import rx.subjects.SerializedSubject;
 
@@ -62,6 +65,7 @@ public class SingularityMesosSchedulerClient {
   private final SingularityConfiguration configuration;
   private final MesosConfiguration mesosConfiguration;
   private final String singularityUriBase;
+  private final Scheduler subscribeScheduler;
 
   private SerializedSubject<Optional<SinkOperation<Call>>, Optional<SinkOperation<Call>>> publisher;
   private FrameworkID frameworkId;
@@ -69,10 +73,13 @@ public class SingularityMesosSchedulerClient {
   private Thread subscriberThread;
 
   @Inject
-  public SingularityMesosSchedulerClient(SingularityConfiguration configuration, @Named(SingularityServiceUIModule.SINGULARITY_URI_BASE) final String singularityUriBase) {
+  public SingularityMesosSchedulerClient(SingularityConfiguration configuration,
+                                         @Named(SingularityServiceUIModule.SINGULARITY_URI_BASE) final String singularityUriBase,
+                                         SingularityManagedThreadPoolFactory threadPoolFactory) {
     this.configuration = configuration;
     this.mesosConfiguration = configuration.getMesosConfiguration();
     this.singularityUriBase = singularityUriBase;
+    this.subscribeScheduler = Schedulers.from(threadPoolFactory.get("mesos-rx-subscribe", 5));
   }
 
   /**
@@ -173,7 +180,8 @@ public class SingularityMesosSchedulerClient {
 
     subscribe.processStream(unicastEvents -> {
 
-      final Observable<Event> events = unicastEvents.share();
+      final Observable<Event> events = unicastEvents.share()
+          .subscribeOn(subscribeScheduler);
 
       events.filter(event -> event.getType() == Event.Type.ERROR)
           .map(event -> event.getError().getMessage())
