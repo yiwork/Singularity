@@ -324,6 +324,9 @@ public class TaskManager extends CuratorAsyncManager {
 
   @Timed
   public void saveLastActiveTaskStatus(SingularityTaskStatusHolder taskStatus) {
+    if (leaderCache.active()) {
+      leaderCache.putLastTaskStatus(taskStatus.getTaskId(), taskStatus);
+    }
     save(getLastActiveTaskStatusPath(taskStatus.getTaskId()), taskStatus, taskStatusTranscoder);
   }
 
@@ -371,24 +374,6 @@ public class TaskManager extends CuratorAsyncManager {
     }
 
     return getChildrenAsIdsForParents("getAllTaskIds", paths, taskIdTranscoder);
-  }
-
-  private List<SingularityTaskId> getTaskIds(String root) {
-    return getChildrenAsIds(root, taskIdTranscoder);
-  }
-
-  public List<String> getActiveTaskIdsAsStrings() {
-    if (leaderCache.active()) {
-      return leaderCache.getActiveTaskIdsAsStrings();
-    }
-
-    List<String> results = new ArrayList<>();
-
-    for (String requestId : getChildren(LAST_ACTIVE_TASK_STATUSES_PATH_ROOT)) {
-      results.addAll(getChildren(getLastActiveTaskParent(requestId)));
-    }
-
-    return results;
   }
 
   public List<SingularityTaskId> getActiveTaskIds() {
@@ -472,10 +457,16 @@ public class TaskManager extends CuratorAsyncManager {
 
   @Timed
   public Optional<SingularityTaskStatusHolder> getLastActiveTaskStatus(SingularityTaskId taskId) {
+    if (leaderCache.active()) {
+      return leaderCache.getLastActiveTaskStatus(taskId);
+    }
     return getData(getLastActiveTaskStatusPath(taskId), taskStatusTranscoder);
   }
 
   public List<SingularityTaskStatusHolder> getLastActiveTaskStatusesFor(Collection<SingularityTaskId> activeTaskIds) {
+    if (leaderCache.active()) {
+      return leaderCache.getLastActiveTaskStatusesFor(activeTaskIds);
+    }
     List<String> paths = Lists.newArrayListWithExpectedSize(activeTaskIds.size());
     for (SingularityTaskId taskId : activeTaskIds) {
       paths.add(getLastActiveTaskStatusPath(taskId));
@@ -517,6 +508,9 @@ public class TaskManager extends CuratorAsyncManager {
   }
 
   public Optional<SingularityTaskHistoryUpdate> getTaskHistoryUpdate(SingularityTaskId taskId, ExtendedTaskState taskState) {
+    if (leaderCache.active()) {
+      return SingularityTaskHistoryUpdate.getUpdate(leaderCache.getTaskHistoryUpdates(taskId), taskState);
+    }
     return getData(getUpdatePath(taskId, taskState), taskHistoryUpdateTranscoder);
   }
 
@@ -651,7 +645,7 @@ public class TaskManager extends CuratorAsyncManager {
     LOG.info("New status for recovered task is {}", newUpdate);
 
     // Mark as active again
-    leaderCache.putActiveTask(taskId);
+    leaderCache.putLastTaskStatus(taskId, newUpdate);
     return true;
   }
 
@@ -876,7 +870,7 @@ public class TaskManager extends CuratorAsyncManager {
   public void activateLeaderCache() {
     leaderCache.cachePendingTasks(fetchPendingTasks());
     leaderCache.cachePendingTasksToDelete(getPendingTasksMarkedForDeletion());
-    leaderCache.cacheActiveTaskIds(getActiveTaskIds(false));
+    leaderCache.cacheActiveTaskIds(getLastActiveTaskStatusesFor(getActiveTaskIds(false)));
     leaderCache.cacheCleanupTasks(fetchCleanupTasks());
     leaderCache.cacheKilledTasks(fetchKilledTaskIdRecords());
     leaderCache.cacheTaskHistoryUpdates(getAllTaskHistoryUpdates());
@@ -1006,7 +1000,7 @@ public class TaskManager extends CuratorAsyncManager {
           .forPath(getLastActiveTaskStatusPath(task.getTaskId()), taskStatusTranscoder.toBytes(taskStatusHolder))
           .and().commit();
 
-      leaderCache.putActiveTask(task.getTaskId());
+      leaderCache.putLastTaskStatus(task.getTaskId(), taskStatusHolder);
       taskCache.set(path, task);
     } catch (KeeperException.NodeExistsException nee) {
       LOG.error("Task or active path already existed for {}", task.getTaskId());
@@ -1052,10 +1046,15 @@ public class TaskManager extends CuratorAsyncManager {
   }
 
   public SingularityDeleteResult deleteKilledRecord(SingularityTaskId taskId) {
+    boolean removed = true;
     if (leaderCache.active()) {
-      leaderCache.deleteKilledTask(taskId);
+      removed = leaderCache.deleteKilledTask(taskId);
     }
-    return delete(getKilledPath(taskId));
+    if (removed) {
+      return delete(getKilledPath(taskId));
+    } else {
+      return SingularityDeleteResult.DIDNT_EXIST;
+    }
   }
 
   @Timed

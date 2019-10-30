@@ -108,7 +108,7 @@ public class SingularityMesosExecutorInfoSupport {
   }
 
   @Timed
-  public void checkDirectoryAndContainerId(final SingularityTaskId taskId) {
+  public void checkDirectoryAndContainerId(final SingularityTaskId taskId, Optional<SingularityTask> task) {
     final Optional<String> maybeDirectory = taskManager.getDirectory(taskId);
     final Optional<String> maybeContainerId = taskManager.getContainerId(taskId);
 
@@ -116,8 +116,6 @@ public class SingularityMesosExecutorInfoSupport {
       LOG.debug("Already had a directory and container id for task {}, skipping lookup", taskId);
       return;
     }
-
-    final Optional<SingularityTask> task = taskManager.getTask(taskId);
 
     if (!task.isPresent()) {
       LOG.warn("No task found available for task {}, can't locate directory or container id", taskId);

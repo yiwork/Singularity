@@ -232,6 +232,15 @@ public class SingularityMesosStatusUpdateHandler {
   private StatusUpdateResult unsafeProcessStatusUpdate(Protos.TaskStatus status, SingularityTaskId taskIdObj) {
     final String taskId = status.getTaskId().getValue();
 
+    final SingularityTaskStatusHolder newTaskStatusHolder = new SingularityTaskStatusHolder(taskIdObj, Optional.of(mesosProtosUtils.taskStatusFromProtos(status)), System.currentTimeMillis(), serverId, Optional.<String>empty());
+    final Optional<SingularityTaskStatusHolder> previousTaskStatusHolder = taskManager.getLastActiveTaskStatus(taskIdObj);
+    final ExtendedTaskState taskState = MesosUtils.fromTaskState(status.getState());
+
+    if (isDuplicateOrIgnorableStatusUpdate(previousTaskStatusHolder, newTaskStatusHolder)) {
+      LOG.debug("Ignoring status update {} to {}", taskState, taskIdObj);
+      return StatusUpdateResult.IGNORED;
+    }
+
     long timestamp = System.currentTimeMillis();
 
     if (status.hasTimestamp()) {
@@ -244,15 +253,11 @@ public class SingularityMesosStatusUpdateHandler {
     LOG.debug("Update: task {} is now {} ({}) at {} (delta: {})", taskId, status.getState(), status.getMessage(), timestamp, JavaUtils.durationFromMillis(delta));
     statusUpdateDeltas.put(now, delta);
 
-    final SingularityTaskStatusHolder newTaskStatusHolder = new SingularityTaskStatusHolder(taskIdObj, Optional.of(mesosProtosUtils.taskStatusFromProtos(status)), System.currentTimeMillis(), serverId, Optional.<String>empty());
-    final Optional<SingularityTaskStatusHolder> previousTaskStatusHolder = taskManager.getLastActiveTaskStatus(taskIdObj);
-    final ExtendedTaskState taskState = MesosUtils.fromTaskState(status.getState());
-
     if (isRecoveryStatusUpdate(previousTaskStatusHolder, status.getReason(), taskState, newTaskStatusHolder)) {
       LOG.info("Found recovery status update with reason {} for task {}", status.getReason(), taskId);
       final Optional<SingularityTaskHistory> maybeTaskHistory = taskManager.getTaskHistory(taskIdObj);
       if (!maybeTaskHistory.isPresent() || !maybeTaskHistory.get().getLastTaskUpdate().isPresent()) {
-        LOG.warn("Task {} not found to recover, it may have already been persisted. Triggering a kill via mesos");
+        LOG.warn("Task {} not found to recover, it may have already been persisted. Triggering a kill via mesos", taskId);
         return StatusUpdateResult.KILL_TASK;
       }
       boolean reactivated = taskManager.reactivateTask(taskIdObj, taskState, newTaskStatusHolder, Optional.ofNullable(status.getMessage()), status.hasReason() ? Optional.of(status.getReason().name()) : Optional.<String>empty());
@@ -271,10 +276,6 @@ public class SingularityMesosStatusUpdateHandler {
       } else {
         return StatusUpdateResult.KILL_TASK;
       }
-    } else if (isDuplicateOrIgnorableStatusUpdate(previousTaskStatusHolder, newTaskStatusHolder)) {
-      LOG.trace("Ignoring status update {} to {}", taskState, taskIdObj);
-      saveNewTaskStatusHolder(taskIdObj, newTaskStatusHolder, taskState);
-      return StatusUpdateResult.IGNORED;
     }
 
     final Optional<SingularityTask> task = taskManager.getTask(taskIdObj);
@@ -331,7 +332,7 @@ public class SingularityMesosStatusUpdateHandler {
         new SingularityTaskHistoryUpdate(taskIdObj, timestamp, taskState, statusMessage, status.hasReason() ? Optional.of(status.getReason().name()) : Optional.<String>empty());
     final SingularityCreateResult taskHistoryUpdateCreateResult = taskManager.saveTaskHistoryUpdate(taskUpdate);
 
-    logSupport.checkDirectoryAndContainerId(taskIdObj);
+    logSupport.checkDirectoryAndContainerId(taskIdObj, task);
 
     if (taskState.isDone()) {
       healthchecker.cancelHealthcheck(taskId);
