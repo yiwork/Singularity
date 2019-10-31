@@ -75,6 +75,7 @@ public class MesosConfiguration {
   private Optional<String> mesosPassword = Optional.empty();
 
   private long reconnectTimeoutMillis = 60000;
+  private int subscriberThreads = 5;
 
   public int getMaxNumInstancesPerRequest() {
     return maxNumInstancesPerRequest;
@@ -410,5 +411,13 @@ public class MesosConfiguration {
 
   public void setReconnectTimeoutMillis(long reconnectTimeoutMillis) {
     this.reconnectTimeoutMillis = reconnectTimeoutMillis;
+  }
+
+  public int getSubscriberThreads() {
+    return subscriberThreads;
+  }
+
+  public void setSubscriberThreads(int subscriberThreads) {
+    this.subscriberThreads = subscriberThreads;
   }
 }
