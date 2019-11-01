@@ -196,6 +196,8 @@ public class SingularityConfiguration extends Configuration {
 
   private int startupIntervalSeconds = 2;
 
+  private int schedulerStartupConcurrency = 20;
+
   private Optional<Integer> healthcheckMaxRetries = Optional.empty();
 
   private Optional<Integer> healthcheckMaxTotalTimeoutSeconds = Optional.empty();
@@ -389,12 +391,6 @@ public class SingularityConfiguration extends Configuration {
   private int maxDecommissioningSlaves = 2;
 
   private boolean spreadAllSlavesEnabled = false;
-
-  private long delayPollersWhenDeltaOverMs = 15000;
-
-  private double delayPollersWhenPercentOfRequestsOverUpdateDelta = 25;
-
-  private boolean delayOfferProcessingForLargeStatusUpdateDelta = true;
 
   private int maxRunNowTaskLaunchDelayDays = 30;
 
@@ -1295,6 +1291,14 @@ public class SingularityConfiguration extends Configuration {
     this.startupIntervalSeconds = startupIntervalSeconds;
   }
 
+  public int getSchedulerStartupConcurrency() {
+    return schedulerStartupConcurrency;
+  }
+
+  public void setSchedulerStartupConcurrency(int schedulerStartupConcurrency) {
+    this.schedulerStartupConcurrency = schedulerStartupConcurrency;
+  }
+
   public long getReconcileSlavesEveryMinutes() {
     return reconcileSlavesEveryMinutes;
   }
@@ -1655,30 +1659,6 @@ public class SingularityConfiguration extends Configuration {
 
   public void setCheckAutoSpreadAllSlavesEverySeconds(long checkAutoSpreadAllSlavesEverySeconds) {
     this.checkAutoSpreadAllSlavesEverySeconds = checkAutoSpreadAllSlavesEverySeconds;
-  }
-
-  public long getDelayPollersWhenDeltaOverMs() {
-    return delayPollersWhenDeltaOverMs;
-  }
-
-  public void setDelayPollersWhenDeltaOverMs(long delayPollersWhenDeltaOverMs) {
-    this.delayPollersWhenDeltaOverMs = delayPollersWhenDeltaOverMs;
-  }
-
-  public boolean isDelayOfferProcessingForLargeStatusUpdateDelta() {
-    return delayOfferProcessingForLargeStatusUpdateDelta;
-  }
-
-  public void setDelayOfferProcessingForLargeStatusUpdateDelta(boolean delayOfferProcessingForLargeStatusUpdateDelta) {
-    this.delayOfferProcessingForLargeStatusUpdateDelta = delayOfferProcessingForLargeStatusUpdateDelta;
-  }
-
-  public double getDelayPollersWhenPercentOfRequestsOverUpdateDelta() {
-    return delayPollersWhenPercentOfRequestsOverUpdateDelta;
-  }
-
-  public void setDelayPollersWhenPercentOfRequestsOverUpdateDelta(double delayPollersWhenPercentOfRequestsOverUpdateDelta) {
-    this.delayPollersWhenPercentOfRequestsOverUpdateDelta = delayPollersWhenPercentOfRequestsOverUpdateDelta;
   }
 
   public int getMaxRunNowTaskLaunchDelayDays() {
