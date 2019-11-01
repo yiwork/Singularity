@@ -27,7 +27,7 @@ public abstract class SingularityMesosScheduler {
    *
    * @param subscribed Data regarding your subscription
    */
-  public abstract void subscribed(Protos.Event.Subscribed subscribed);
+  public abstract CompletableFuture<Void> subscribed(Protos.Event.Subscribed subscribed);
 
   /**
    * Received whenever there are new resources that are offered to the
@@ -37,7 +37,7 @@ public abstract class SingularityMesosScheduler {
    *
    * @param offers A list of offers from mesos
    */
-  public abstract void resourceOffers(List<Offer> offers);
+  public abstract CompletableFuture<Void> resourceOffers(List<Offer> offers);
 
   /**
    * Received whenever there are resources requested back from the scheduler.
@@ -59,7 +59,7 @@ public abstract class SingularityMesosScheduler {
    *
    * @param offerId the recinded offer
    */
-  public abstract void rescind(OfferID offerId);
+  public abstract CompletableFuture<Void> rescind(OfferID offerId);
 
   /**
    * Received when a particular inverse offer is no longer valid (e.g., the
