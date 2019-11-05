@@ -178,7 +178,14 @@ public class SingularityMesosSchedulerImpl extends SingularityMesosScheduler {
     }
     return CompletableFuture.runAsync(() -> {
       try {
-        LOG.info("Starting offer check after {}ms", System.currentTimeMillis() - received);
+        long lag = System.currentTimeMillis() - received;
+        if (lag > configuration.getMesosConfiguration().getOfferTimeout()) {
+          LOG.info("Offer lag {} too large, declining {} offers", lag, offers.size());
+          mesosSchedulerClient.decline(offers.stream().map(Offer::getId).collect(Collectors.toList()));
+          return;
+        } else {
+          LOG.info("Starting offer check after {}ms", lag);
+        }
         lock.runWithOffersLock(() -> offerScheduler.resourceOffers(offers), "SingularityMesosScheduler");
       } catch (Throwable t) {
         LOG.error("Scheduler threw an uncaught exception - exiting", t);
@@ -212,7 +219,7 @@ public class SingularityMesosSchedulerImpl extends SingularityMesosScheduler {
     lastHeartbeatTime.getAndSet(System.currentTimeMillis()); // Consider status update a heartbeat, we are still getting valid communication from mesos
     if (!state.isRunning()) {
       try {
-        LOG.info("Scheduler is in state {}, queueing an update {} - {} queued updates so far", state.getMesosSchedulerState(), status, queuedUpdates.size());
+        LOG.trace("Scheduler is in state {}, queueing an update {} - {} queued updates so far", state.getMesosSchedulerState(), status, queuedUpdates.size());
         queuedUpdates.add(status);
         return CompletableFuture.completedFuture(false);
       } catch (IOException ioe) {
